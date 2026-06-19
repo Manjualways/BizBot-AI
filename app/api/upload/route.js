@@ -65,6 +65,7 @@ export async function POST(req) {
                 .insert([
                     {
                         bot_id: botId,
+                        filename: file.name, // Add this line
                         chunk_text: chunk,
                     },
                 ])

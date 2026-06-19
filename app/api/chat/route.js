@@ -4,11 +4,21 @@ export async function POST(req) {
   try {
     const { message, botId } = await req.json()
 
-    // Load chunks for this bot
+    // Save user message
+    await supabase.from('messages').insert([
+      {
+        bot_id: botId,
+        role: 'user',
+        content: message,
+      },
+    ])
+
+    // Retrieve relevant chunks
     const words = message
       .toLowerCase()
+      .replace(/[^\w\s]/g, '')
       .split(' ')
-      .filter(word => word.length > 2)
+      .filter((word) => word.length > 2)
 
     let allChunks = []
 
@@ -24,25 +34,83 @@ export async function POST(req) {
         allChunks.push(...data)
       }
     }
+
     const uniqueChunks = [
       ...new Map(
-        allChunks.map(chunk => [chunk.id, chunk])
+        allChunks.map((chunk) => [chunk.id, chunk])
       ).values(),
     ]
-    console.log(
-      uniqueChunks.map(c => c.chunk_text.substring(0, 200))
-    )
 
     const knowledgeBase =
       uniqueChunks
-        .slice(0, 3)
-        .map(chunk => chunk.chunk_text)
-        .join('\n\n')
-    console.log("KNOWLEDGE PREVIEW:")
-    console.log(knowledgeBase.substring(0, 2000))
+        .slice(0, 5)
+        .map((chunk) => chunk.chunk_text)
+        .join('\n\n') || ''
+
     console.log('WORDS:', words)
     console.log('CHUNKS FOUND:', uniqueChunks.length)
     console.log('KNOWLEDGE LENGTH:', knowledgeBase.length)
+
+    // Load conversation history
+    const { data: previousMessages } = await supabase
+      .from('messages')
+      .select('role, content')
+      .eq('bot_id', botId)
+      .order('created_at', {
+        ascending: false,
+      })
+      .limit(20)
+
+    const conversationHistory =
+      previousMessages
+        ?.reverse()
+        .map((msg) => ({
+          role: msg.role,
+          content: msg.content,
+        })) || []
+
+    console.log(
+      'CONVERSATION HISTORY:',
+      conversationHistory
+    )
+
+    // System prompt
+    const systemPrompt = `
+You are a helpful AI assistant.
+
+You have access to:
+
+1. Previous conversation history.
+2. A knowledge base from uploaded documents.
+
+RULES:
+
+- ALWAYS remember information shared by the user earlier.
+- Previous conversation history has the highest priority.
+- Use the knowledge base for document-related questions.
+- If the user asks about something they mentioned before, answer from memory.
+- Only say "I cannot answer this question based on the available information"
+  if the answer is not present in either the conversation history or the knowledge base.
+
+Never say:
+- I cannot access PDFs
+- I cannot access documents
+- I do not remember previous conversations
+
+KNOWLEDGE BASE:
+
+${knowledgeBase}
+`
+
+    console.log(
+      'KEY EXISTS:',
+      !!process.env.OPENROUTER_API_KEY
+    )
+
+    console.log(
+      'KEY LENGTH:',
+      process.env.OPENROUTER_API_KEY?.length
+    )
 
     const response = await fetch(
       'https://openrouter.ai/api/v1/chat/completions',
@@ -57,28 +125,15 @@ export async function POST(req) {
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash',
           max_tokens: 500,
+
           messages: [
             {
               role: 'system',
-              content: `
-You are a helpful AI assistant.
-
-Use ONLY the information in the knowledge base below.
-
-If the answer exists in the knowledge base, answer directly.
-
-Never say:
-- I cannot access PDFs
-- I cannot access documents
-- Please upload the document
-
-KNOWLEDGE BASE:
-
-${knowledgeBase}
-
-END OF KNOWLEDGE BASE
-`,
+              content: systemPrompt,
             },
+
+            ...conversationHistory,
+
             {
               role: 'user',
               content: message,
@@ -96,6 +151,8 @@ END OF KNOWLEDGE BASE
     )
 
     if (!response.ok) {
+      console.log(data)
+
       return Response.json({
         reply:
           data?.error?.message ||
@@ -107,10 +164,22 @@ END OF KNOWLEDGE BASE
       data?.choices?.[0]?.message?.content ||
       'No response from AI'
 
+    // Save assistant message
+    await supabase.from('messages').insert([
+      {
+        bot_id: botId,
+        role: 'assistant',
+        content: aiReply,
+      },
+    ])
+
+    // Prepare sources
     const sources = uniqueChunks
       .slice(0, 3)
       .map((chunk, index) => ({
         number: index + 1,
+        filename:
+          chunk.filename || 'Unknown Document',
         preview: chunk.chunk_text.substring(0, 100),
       }))
 
