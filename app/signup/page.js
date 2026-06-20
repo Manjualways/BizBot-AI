@@ -53,7 +53,16 @@ export default function Signup() {
 
     } catch (error) {
       console.error(error)
-      toast.error(error.message)
+
+      if (error.code === 'auth/email-already-in-use') {
+        toast.error('An account with this email already exists')
+      } else if (error.code === 'auth/weak-password') {
+        toast.error('Password must be at least 6 characters')
+      } else if (error.code === 'auth/invalid-email') {
+        toast.error('Please enter a valid email address')
+      } else {
+        toast.error('Something went wrong. Please try again.')
+      }
     } finally {
       setSignupLoading(false)
     }

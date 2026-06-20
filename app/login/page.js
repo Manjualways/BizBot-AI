@@ -42,7 +42,15 @@ export default function Login() {
       toast.success('Login successful!')
       router.push('/dashboard')
     } catch (error) {
-      toast.error(error.message)
+      if (error.code === 'auth/email-already-in-use') {
+        toast.error('An account with this email already exists')
+      } else if (error.code === 'auth/invalid-email') {
+        toast.error('Please enter a valid email address')
+      } else if (error.code === 'auth/weak-password') {
+        toast.error('Password should be at least 6 characters')
+      } else {
+        toast.error('Something went wrong. Please try again.')
+      }
     }
   }
 
