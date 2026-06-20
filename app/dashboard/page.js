@@ -99,17 +99,62 @@ export default function Dashboard() {
 
               <div className="flex items-center justify-between mb-4">
                 <a href={`/chat/${bot.id}`} className="text-lg font-bold hover:underline">
-  {bot.name}
-</a>
+                  {bot.name}
+                </a>
 
                 <span className="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full">
                   Active
                 </span>
               </div>
 
+
               <p className="text-gray-500 text-sm mb-4">
                 AI chatbot for your business
               </p>
+
+              <div className="flex gap-2 flex-wrap">
+
+                <a
+                  href={`/chat/${bot.id}`}
+                  className="bg-black text-white px-4 py-2 rounded-xl text-sm"
+                >
+                  Open
+                </a>
+
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      `${window.location.origin}/bot/${bot.id}`
+                    )
+
+                    alert('Public link copied!')
+                  }}
+                  className="bg-blue-500 text-white px-4 py-2 rounded-xl text-sm"
+                >
+                  Share
+                </button>
+
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      `<iframe
+src="${window.location.origin}/bot/${bot.id}"
+width="400"
+height="700"
+style="border:none;border-radius:16px;"
+></iframe>`
+                    )
+
+                    alert('Embed code copied!')
+                  }}
+                  className="bg-purple-600 text-white px-4 py-2 rounded-xl text-sm"
+                >
+                  Embed
+                </button>
+
+              </div>
+
+
 
             </div>
           ))}
