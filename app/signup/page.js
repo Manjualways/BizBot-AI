@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-
+import toast from 'react-hot-toast'
 import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
@@ -32,7 +32,7 @@ export default function Signup() {
 
   const handleSubmit = async () => {
     if (!email || !password) {
-      alert('Please fill all fields')
+      toast.error('Please fill all required fields')
       return
     }
 
@@ -45,11 +45,15 @@ export default function Signup() {
         password
       )
 
-      alert('Account created successfully!')
-      router.push('/dashboard')
+      toast.success('Account created successfully!')
+
+      setTimeout(() => {
+        router.push('/dashboard')
+      }, 1000)
+
     } catch (error) {
       console.error(error)
-      alert(error.message)
+      toast.error(error.message)
     } finally {
       setSignupLoading(false)
     }
