@@ -1,5 +1,5 @@
 import supabase from '@/app/lib/supabase'
-
+import openai from '@/app/lib/openai'
 export async function POST(req) {
   try {
     const { message, botId } = await req.json()
@@ -13,33 +13,43 @@ export async function POST(req) {
       },
     ])
 
-    // Retrieve relevant chunks
-    const words = message
-      .toLowerCase()
-      .replace(/[^\w\s]/g, '')
-      .split(' ')
-      .filter((word) => word.length > 2)
+    // Generate query embedding
+    const embeddingResponse =
+      await openai.embeddings.create({
+        model: 'text-embedding-3-small',
+        input: message,
+      })
 
-    let allChunks = []
+    const queryEmbedding =
+      embeddingResponse.data[0].embedding
 
-    for (const word of words) {
-      const { data } = await supabase
-        .from('document_chunks')
-        .select('*')
-        .eq('bot_id', botId)
-        .ilike('chunk_text', `%${word}%`)
-        .limit(3)
-
-      if (data) {
-        allChunks.push(...data)
+    // Semantic search using pgvector
+    const {
+      data: uniqueChunks,
+      error: searchError,
+    } = await supabase.rpc(
+      'match_chunks',
+      {
+        query_embedding: queryEmbedding,
+        match_bot_id: botId,
+        match_count: 5,
       }
-    }
+    )
 
-    const uniqueChunks = [
-      ...new Map(
-        allChunks.map((chunk) => [chunk.id, chunk])
-      ).values(),
-    ]
+    if (searchError) {
+      console.log(
+        'SEMANTIC SEARCH ERROR:',
+        searchError
+      )
+    }
+    console.log(
+      'SEMANTIC CHUNKS:',
+      uniqueChunks
+    )
+    console.log(
+      'CHUNKS FOUND:',
+      uniqueChunks?.length
+    )
 
     const knowledgeBase =
       uniqueChunks
@@ -47,7 +57,7 @@ export async function POST(req) {
         .map((chunk) => chunk.chunk_text)
         .join('\n\n') || ''
 
-    console.log('WORDS:', words)
+
     console.log('CHUNKS FOUND:', uniqueChunks.length)
     console.log('KNOWLEDGE LENGTH:', knowledgeBase.length)
 
@@ -91,7 +101,13 @@ RULES:
 - If the user asks about something they mentioned before, answer from memory.
 - Only say "I cannot answer this question based on the available information"
   if the answer is not present in either the conversation history or the knowledge base.
+Answer naturally using the knowledge base.
 
+Do not copy chunks verbatim.
+
+Summarize and explain the answer in your own words.
+
+Be concise and conversational.
 Never say:
 - I cannot access PDFs
 - I cannot access documents

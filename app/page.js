@@ -75,18 +75,18 @@ function DemoChat() {
         {messages.map((msg, i) => (
           <div
             key={i}
-            className={`p - 4 rounded - 2xl ${msg.role === 'user'
-              ? 'bg-gray-200 ml-auto max-w-[80%]'
-              : 'bg-black text-white mr-auto max-w-[80%]'
-              } `}
+            className={`p-4 rounded-2xl w-fit ${msg.role === 'user'
+              ? 'bg-gray-200 ml-auto max-w-[80%] text-black rounded-br-sm'
+              : 'bg-black text-white mr-auto max-w-[80%] rounded-bl-sm'
+              }`}
           >
             {msg.text}
           </div>
         ))}
 
         {loading && (
-          <div className="bg-black text-white p-4 rounded-2xl max-w-[80%]">
-            Thinking...
+          <div className="bg-black text-white p-4 rounded-2xl w-fit mr-auto max-w-[80%] rounded-bl-sm flex items-center gap-2">
+            <span className="animate-pulse">Thinking...</span>
           </div>
         )}
 
@@ -145,7 +145,8 @@ export default function Home() {
 
       <section className="text-center py-32 px-6 relative overflow-hidden">
 
-        <div className="absolute w-[600px] h-[600px] bg-purple-300 opacity-20 blur-3xl rounded-full top-0 left-1/2 -translate-x-1/2"></div>
+        <div className="absolute w-[600px] h-[600px] bg-purple-300 opacity-20 blur-3xl rounded-full top-0 left-1/2 -translate-x-1/2 pointer-events-none -z-10"></div>
+
 
         <h1 className="text-5xl md:text-6xl font-extrabold leading-tight mb-8">
           AI Chatbots <br />
@@ -165,18 +166,12 @@ export default function Home() {
             Start Free
           </Link>
 
-          <button
-            onClick={() =>
-              document
-                .getElementById('live-demo')
-                ?.scrollIntoView({
-                  behavior: 'smooth',
-                })
-            }
-            className="border px-8 py-4 rounded-2xl font-semibold hover:bg-gray-100 transition"
+          <a
+            href="#live-demo"
+            className="border px-8 py-4 rounded-2xl font-semibold hover:bg-gray-100 transition flex items-center justify-center"
           >
-            View Demo
-          </button>
+            Live Demo
+          </a>
 
         </div>
 

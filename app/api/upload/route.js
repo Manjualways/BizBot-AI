@@ -1,7 +1,7 @@
 import supabase from '@/app/lib/supabase'
 import pdfParse from 'pdf-parse'
 import { chunkText } from '@/app/lib/chunkText'
-
+import openai from '@/app/lib/openai'
 export async function POST(req) {
     try {
         const formData = await req.formData()
@@ -56,22 +56,44 @@ export async function POST(req) {
             })
         }
 
-        // Save chunks
+        // Save chunks with embeddings
         for (const chunk of chunks) {
-            console.log("SAVING CHUNK...")
+            console.log('CREATING EMBEDDING...')
 
-            const { error } = await supabase
-                .from('document_chunks')
-                .insert([
-                    {
-                        bot_id: botId,
-                        filename: file.name, // Add this line
-                        chunk_text: chunk,
-                    },
-                ])
+            try {
+                const embeddingResponse =
+                    await openai.embeddings.create({
+                        model: 'text-embedding-3-small',
+                        input: chunk,
+                    })
 
-            if (error) {
-                console.log("CHUNK ERROR:", error)
+                const embedding =
+                    embeddingResponse.data[0].embedding
+
+                const { error } = await supabase
+                    .from('document_chunks')
+                    .insert([
+                        {
+                            bot_id: botId,
+                            filename: file.name,
+                            chunk_text: chunk,
+                            embedding: embedding,
+                        },
+                    ])
+
+                if (error) {
+                    console.log(
+                        'CHUNK INSERT ERROR:',
+                        error
+                    )
+                } else {
+                    console.log('CHUNK SAVED')
+                }
+            } catch (err) {
+                console.log(
+                    'EMBEDDING ERROR:',
+                    err.message
+                )
             }
         }
 
